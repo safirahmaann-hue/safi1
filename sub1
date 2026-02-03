@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+    iframe {
+      width: 60%;
+      height: 50%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+ <iframe src="https://safirahmaann-hue.github.io/safi1/man1.html"></iframe>
+ <iframe src="https://safirahmaann-hue.github.io/safi1/man2.html"></iframe>
+  
+</body>
+</html>
+
