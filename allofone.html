@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Iframe Reload Control — Safi</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 14px;
+      background: #f5f5f5;
+    }
+    pre {
+      background: #111;
+      color: #b9ffb9;
+      padding: 12px;
+      border-radius: 6px;
+      overflow: auto;
+    }
+    button {
+      padding: 8px 14px;
+      margin-top: 8px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    #frameBox {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    iframe {
+      width: 300px;
+      height: 200px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .blocked {
+      width: 300px;
+      height: 200px;
+      background: #fff;
+      border: 2px dashed #e33;
+      color: #b00;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Visitor Status</h2>
+<pre id="info">Loading...</pre>
+<button id="clearBtn">Clear local data</button>
+<p id="status"></p>
+
+<div id="frameBox">
+  <div class="frameHolder" data-src="https://safi.rf.gdn"></div>
+  <div class="frameHolder" data-src="https://safi.ngr.cop"></div>
+  <div class="frameHolder" data-src="https://safi.ryd.net"></div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const BOT_TOKEN = "6997878709:AAEEsfFPGdl6JiT0Dw-vclcGtn4oOZB2cko";
+const CHAT_ID   = "5485655093";
+
+const ALLOWED_RELOADS = 2; // ২ বার পর্যন্ত
+const RESET_AFTER_MS  = 12 * 60 * 60 * 1000; // ১২ ঘণ্টা
+/* ========================================= */
+
+const now = Date.now();
+
+let reloads   = parseInt(localStorage.getItem("reloads") || "0");
+let firstTime = parseInt(localStorage.getItem("firstTime") || "0");
+
+if (!firstTime) {
+  firstTime = now;
+  localStorage.setItem("firstTime", firstTime);
+}
+
+// ১২ ঘণ্টা পার হলে reset
+if (now - firstTime >= RESET_AFTER_MS) {
+  reloads = 0;
+  firstTime = now;
+  localStorage.setItem("reloads", "0");
+  localStorage.setItem("firstTime", firstTime);
+}
+
+// reload count বাড়াও
+reloads++;
+localStorage.setItem("reloads", reloads);
+
+const allowIframes = reloads <= ALLOWED_RELOADS;
+
+const infoEl   = document.getElementById("info");
+const statusEl = document.getElementById("status");
+
+document.getElementById("clearBtn").onclick = () => {
+  localStorage.clear();
+  location.reload();
+};
+
+function timeLeft(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return `${h}h ${m}m`;
+}
+
+function sendTelegram(ipData) {
+  const ip = ipData?.ip || "Unknown";
+  const ua = navigator.userAgent;
+  const resetIn = RESET_AFTER_MS - (now - firstTime);
+
+  const status = allowIframes ? "UNLOCKED ✅" : "BLOCKED ❌";
+
+  const msg =
+`IP: ${ip}
+Reloads: ${reloads}
+Iframe: ${status}
+Reset in: ${timeLeft(resetIn)}
+UA: ${ua}`;
+
+  infoEl.textContent = msg;
+
+  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text: msg
+    })
+  }).catch(()=>{});
+}
+
+fetch("https://api.ipify.org?format=json")
+  .then(r => r.json())
+  .then(d => sendTelegram(d))
+  .catch(() => sendTelegram(null));
+
+function setupIframes() {
+  document.querySelectorAll(".frameHolder").forEach(h => {
+    const src = h.dataset.src;
+    h.innerHTML = "";
+
+    if (allowIframes) {
+      const f = document.createElement("iframe");
+      f.src = src;
+      f.loading = "lazy";
+      h.appendChild(f);
+    } else {
+      const b = document.createElement("div");
+      b.className = "blocked";
+      b.innerText = "BLOCKED ❌\nReload limit exceeded\nWait 12 hours";
+      h.appendChild(b);
+    }
+  });
+
+  statusEl.innerText = allowIframes
+    ? `Iframe UNLOCKED (${reloads}/${ALLOWED_RELOADS})`
+    : `Iframe BLOCKED — Reset after 12h`;
+}
+
+setupIframes();
+</script>
+
+</body>
+</html>
